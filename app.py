@@ -2,15 +2,13 @@ import streamlit as st
 import google.generativeai as genai
 import json
 import requests
-from streamlit_lottie import st_lottie
 
 st.set_page_config(page_title="The Analytical Journey", layout="centered")
 
-# --- SIDEBAR: YÊU CẦU API KEY ---
+# --- SIDEBAR: Cấu hình ---
 with st.sidebar:
     st.header("🔑 Cấu hình kết nối")
     user_api_key = st.text_input("Dán Gemini API Key (Free Tier):", type="password")
-    st.caption("Dùng Key từ [Google AI Studio](https://aistudio.google.com/)")
 
 if not user_api_key:
     st.title("🗡️ The Analytical Journey")
@@ -19,14 +17,14 @@ if not user_api_key:
 
 genai.configure(api_key=user_api_key)
 
-# --- HÀM GỌI AI (TỐI ƯU CHO FREE TIER) ---
+# --- HÀM XỬ LÝ AI ---
 def get_ai_response(prompt, is_json=False):
-    # Sử dụng model 'gemini-1.5-flash' - hỗ trợ tốt nhất cho Free Tier
     model = genai.GenerativeModel('gemini-1.5-flash')
     try:
         response = model.generate_content(prompt)
-        text = response.text.replace('```json', '').replace('
-```', '').strip()
+        text = response.text
+        # Loại bỏ markdown code blocks một cách an toàn
+        text = text.replace("```json", "").replace("```", "").strip()
         return json.loads(text) if is_json else text
     except Exception as e:
         return None
@@ -37,21 +35,22 @@ if 'stage' not in st.session_state:
 
 st.title("🗡️ The Analytical Journey")
 
-# TRẠM 0: CHÀO HỎI & NHẬP ĐỀ
+# TRẠM 0
 if st.session_state.stage == 0:
-    st.info("👋 **Game Master:** Chào bạn! Hãy nhập đề bài IELTS Writing Task 2 để ta bắt đầu.")
+    st.info("👋 **Game Master:** Chào bạn! Hãy nhập đề bài IELTS Writing Task 2 để bắt đầu.")
     if topic := st.text_area("Nhập đề bài tại đây:"):
         if st.button("🚀 Bắt đầu hành trình"):
             with st.spinner("Game Master đang chuẩn bị bối cảnh..."):
-                roles = get_ai_response(f"Topic: '{topic}'. Create 3 RPG roles (Micro, Meso, Macro) with 1 question each. Return ONLY JSON: {{'micro': {{'role': '', 'question': ''}}, 'meso': {{'role': '', 'question': ''}}, 'macro': {{'role': '', 'question': ''}}}}", True)
+                prompt = f"Topic: '{topic}'. Create 3 RPG roles (Micro, Meso, Macro) with 1 question each. Return ONLY JSON: {{\"micro\": {{\"role\": \"\", \"question\": \"\"}}, \"meso\": {{\"role\": \"\", \"question\": \"\"}}, \"macro\": {{\"role\": \"\", \"question\": \"\"}}}}"
+                roles = get_ai_response(prompt, True)
                 if roles:
                     st.session_state.roles = roles
                     st.session_state.topic = topic
                     st.session_state.stage = 1
                     st.rerun()
-                else: st.error("Lỗi: Key của bạn có thể đã hết hạn hoặc vượt quá giới hạn (Free Tier Limit).")
+                else: st.error("Lỗi AI: Vui lòng kiểm tra lại Key hoặc chủ đề.")
 
-# CÁC TRẠM (1-3)
+# CÁC TRẠM 1-3
 elif st.session_state.stage <= 3:
     map_data = {1: ('micro', '🏕️', 'Micro Village'), 2: ('meso', '🏛️', 'Meso Guild'), 3: ('macro', '🏰', 'Macro Kingdom')}
     key, icon, title = map_data[st.session_state.stage]
@@ -65,7 +64,7 @@ elif st.session_state.stage <= 3:
             st.session_state.stage += 1
             st.rerun()
 
-# TRẠM 4: KẾT QUẢ
+# TRẠM 4
 elif st.session_state.stage == 4:
     st.balloons()
     st.header("💎 The Treasure Board")
