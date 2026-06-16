@@ -6,58 +6,71 @@ from streamlit_lottie import st_lottie
 
 st.set_page_config(page_title="The Analytical Journey", layout="centered")
 
-# --- HÀM HỖ TRỢ ---
-def load_lottie(url):
-    try:
-        r = requests.get(url, timeout=3)
-        return r.json() if r.status_code == 200 else None
-    except: return None
-
-# --- SIDEBAR: Luôn yêu cầu API KEY ---
+# --- SIDEBAR: YÊU CẦU API KEY ---
 with st.sidebar:
     st.header("🔑 Cấu hình kết nối")
-    user_api_key = st.text_input("Dán Gemini API Key của bạn vào đây:", type="password")
-    st.caption("Game sẽ chỉ bắt đầu khi bạn dán Key hợp lệ.")
+    user_api_key = st.text_input("Dán Gemini API Key (Free Tier):", type="password")
+    st.caption("Dùng Key từ [Google AI Studio](https://aistudio.google.com/)")
 
-# --- KIỂM TRA API KEY ---
 if not user_api_key:
     st.title("🗡️ The Analytical Journey")
-    st.info("👋 **Game Master:** Chào lữ khách! Hãy cung cấp 'Chìa khóa ma thuật' (API Key) ở cột bên trái để ta bắt đầu cuộc phiêu lưu này nhé!")
-    st.stop() # Dừng lại, không chạy tiếp nếu chưa có Key
+    st.info("👋 **Game Master:** Chào lữ khách! Hãy dán 'Chìa khóa ma thuật' (API Key) ở cột bên trái để bắt đầu.")
+    st.stop()
 
-# Nếu có Key, mới tiếp tục chạy game
 genai.configure(api_key=user_api_key)
 
-def get_ai_data(prompt):
+# --- HÀM GỌI AI (TỐI ƯU CHO FREE TIER) ---
+def get_ai_response(prompt, is_json=False):
+    # Sử dụng model 'gemini-1.5-flash' - hỗ trợ tốt nhất cho Free Tier
     model = genai.GenerativeModel('gemini-1.5-flash')
     try:
         response = model.generate_content(prompt)
-        text = response.text.replace('```json', '').replace('```', '').strip()
-        return json.loads(text)
+        text = response.text.replace('```json', '').replace('
+```', '').strip()
+        return json.loads(text) if is_json else text
     except Exception as e:
-        st.error(f"Lỗi AI: {e}")
         return None
 
-# --- TRẠNG THÁI GAME ---
+# --- KHỞI TẠO TIẾN TRÌNH ---
 if 'stage' not in st.session_state:
     st.session_state.stage = 0
 
 st.title("🗡️ The Analytical Journey")
 
-# --- TRẠM 0: CHÀO HỎI ---
+# TRẠM 0: CHÀO HỎI & NHẬP ĐỀ
 if st.session_state.stage == 0:
-    st.info("👋 **Game Master:** Chào mừng bạn! Hãy nhập đề bài IELTS Writing Task 2 để ta bắt đầu xây dựng chiến lược nhé!")
-    topic = st.text_area("Nhập đề bài:")
-    if st.button("🚀 Bắt đầu hành trình"):
-        with st.spinner("Game Master đang phân tích đề bài..."):
-            roles = get_ai_data(f"Topic: '{topic}'. Create 3 RPG roles (Micro, Meso, Macro) with 1 question each. Return ONLY JSON: {{'micro': {{'role': '', 'question': ''}}, 'meso': {{'role': '', 'question': ''}}, 'macro': {{'role': '', 'question': ''}}}}")
-            if roles:
-                st.session_state.roles = roles
-                st.session_state.topic = topic
-                st.session_state.stage = 1
-                st.rerun()
-            else:
-                st.error("AI không thể kết nối. Hãy kiểm tra API Key của bạn!")
+    st.info("👋 **Game Master:** Chào bạn! Hãy nhập đề bài IELTS Writing Task 2 để ta bắt đầu.")
+    if topic := st.text_area("Nhập đề bài tại đây:"):
+        if st.button("🚀 Bắt đầu hành trình"):
+            with st.spinner("Game Master đang chuẩn bị bối cảnh..."):
+                roles = get_ai_response(f"Topic: '{topic}'. Create 3 RPG roles (Micro, Meso, Macro) with 1 question each. Return ONLY JSON: {{'micro': {{'role': '', 'question': ''}}, 'meso': {{'role': '', 'question': ''}}, 'macro': {{'role': '', 'question': ''}}}}", True)
+                if roles:
+                    st.session_state.roles = roles
+                    st.session_state.topic = topic
+                    st.session_state.stage = 1
+                    st.rerun()
+                else: st.error("Lỗi: Key của bạn có thể đã hết hạn hoặc vượt quá giới hạn (Free Tier Limit).")
 
-# [GIỮ NGUYÊN CÁC STAGE 1, 2, 3, 4 NHƯ ĐOẠN CODE TRƯỚC]
-# (Nếu bạn cần tôi dán lại toàn bộ từ A-Z một lần nữa, hãy bảo tôi nhé!)
+# CÁC TRẠM (1-3)
+elif st.session_state.stage <= 3:
+    map_data = {1: ('micro', '🏕️', 'Micro Village'), 2: ('meso', '🏛️', 'Meso Guild'), 3: ('macro', '🏰', 'Macro Kingdom')}
+    key, icon, title = map_data[st.session_state.stage]
+    
+    st.subheader(f"{icon} {title}")
+    st.write(f"**{st.session_state.roles[key]['role']}:** {st.session_state.roles[key]['question']}")
+    
+    if ans := st.text_area("Câu trả lời của bạn:", key=f"ans_{key}"):
+        if st.button("Gửi insight ➡️"):
+            setattr(st.session_state, f"{key}_ans", ans)
+            st.session_state.stage += 1
+            st.rerun()
+
+# TRẠM 4: KẾT QUẢ
+elif st.session_state.stage == 4:
+    st.balloons()
+    st.header("💎 The Treasure Board")
+    prompt = f"Topic: {st.session_state.topic}. Ideas: Micro:{st.session_state.micro_ans}, Meso:{st.session_state.meso_ans}, Macro:{st.session_state.macro_ans}. Create a Tree Diagram (use arrow ->) for an IELTS outline."
+    st.markdown(get_ai_response(prompt))
+    if st.button("🔄 Chơi lại từ đầu"):
+        for key in list(st.session_state.keys()): del st.session_state[key]
+        st.rerun()
