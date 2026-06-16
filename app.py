@@ -20,7 +20,7 @@ if 'stage' not in st.session_state:
 
 # 3. Logic trạm 0 (Bắt đầu)
 if st.session_state.stage == 0:
-    st.write("📖 Game Master: Please enter an IELTS topic:")
+    st.write("📖 Game Master: Tell me your story today!")
     topic = st.text_area("Topic:")
     
     if st.button("🚀 Begin Your Journey"):
@@ -35,7 +35,7 @@ if st.session_state.stage == 0:
 elif st.session_state.stage > 0:
     if 'roles' not in st.session_state:
         # Gọi AI lấy vai diễn ở đây
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.0-pro')
         prompt = f"Topic: '{st.session_state.topic}'. Give me 3 roles (Individual, Organization, Government) with 1 question each. Format: 'Role|Question' separated by ';;;'"
         response = model.generate_content(prompt)
         # Tách chuỗi đơn giản, không dùng JSON để tránh lỗi cú pháp
